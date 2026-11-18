@@ -6,8 +6,8 @@ import time
 
 import pytest
 
-from pseudonym_nl import Pseudonymiser, available, get
-from pseudonym_nl.core import CORE
+from pseudonym import Pseudonymiser, available, get
+from pseudonym.core import CORE
 
 PACKS = [CORE, *(get(code) for code in available())]
 ALL = None  # every registered language

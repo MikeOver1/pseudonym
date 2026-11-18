@@ -8,8 +8,8 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 
-from pseudonym_nl.kinds import Kind
-from pseudonym_nl.language import CAP, Found, Profile
+from pseudonym.kinds import Kind
+from pseudonym.language import CAP, Found, Profile
 
 FIRST = re.compile(rf"\b{CAP}\b")
 WORDS = re.compile(r"[^\W\d_]+")

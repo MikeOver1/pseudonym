@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import re
 
-from pseudonym_nl.kinds import Kind
-from pseudonym_nl.language import Language, Rule
+from pseudonym.kinds import Kind
+from pseudonym.language import Language, Rule
 
 
 def valid_iban(value: str) -> bool:

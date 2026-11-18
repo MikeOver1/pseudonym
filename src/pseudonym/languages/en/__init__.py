@@ -2,9 +2,9 @@
 
 import re
 
-from pseudonym_nl.core import DATE, VAT_CONTEXT
-from pseudonym_nl.kinds import LABELS, Kind
-from pseudonym_nl.language import Language, Rule, first_names, register
+from pseudonym.core import DATE, VAT_CONTEXT
+from pseudonym.kinds import LABELS, Kind
+from pseudonym.language import Language, Rule, first_names, register
 
 US_STATES = "A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY]"
 STREET_TYPES = "Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Way|Close|Crescent|Terrace|Square|Gardens|Grove|Parkway|Highway"

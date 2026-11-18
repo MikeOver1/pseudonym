@@ -1,4 +1,4 @@
-# pseudonym-nl
+# pseudonym
 
 Reversible pseudonymisation of text before it goes to a language model. What leaves carries
 placeholders such as `[PERSON_K3J9QX]`, never the names, contact details and numbers the text held;
@@ -33,7 +33,7 @@ explains how to add another.
 ## Use
 
 ```python
-from pseudonym_nl import Matcher, Pseudonymiser, StreamRestorer, organisations, people
+from pseudonym import Matcher, Pseudonymiser, StreamRestorer, organisations, people
 
 languages = ["en"]  # or ["nl"], ["en", "nl"]; leave out for every registered language
 known = Matcher.build(people(["Sarah Thompson", "David Okonkwo"], languages) + organisations(["Northwind Traders Ltd"], languages=languages))

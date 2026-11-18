@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from pseudonym_nl.language import Profile
+from pseudonym.language import Profile
 
 REDACTED = "[REDACTED]"
 

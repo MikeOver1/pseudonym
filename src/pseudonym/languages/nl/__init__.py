@@ -3,9 +3,9 @@ are not yet (see CONTRIBUTING.md on adding a country)."""
 
 import re
 
-from pseudonym_nl.core import DATE
-from pseudonym_nl.kinds import Kind
-from pseudonym_nl.language import Language, Rule, first_names, register
+from pseudonym.core import DATE
+from pseudonym.kinds import Kind
+from pseudonym.language import Language, Rule, first_names, register
 
 
 def valid_bsn(value: str) -> bool:

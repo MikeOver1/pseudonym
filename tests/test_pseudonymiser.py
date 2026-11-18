@@ -2,7 +2,7 @@
 
 import pytest
 
-from pseudonym_nl import KINDS, Kind, Matcher, Profile, Pseudonymiser, StreamRestorer, organisations, people, placeholder, redact_secrets
+from pseudonym import KINDS, Kind, Matcher, Profile, Pseudonymiser, StreamRestorer, organisations, people, placeholder, redact_secrets
 
 NL = ["nl"]
 

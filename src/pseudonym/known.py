@@ -8,8 +8,8 @@ from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
-from pseudonym_nl.kinds import Kind
-from pseudonym_nl.language import Found, Language, Profile
+from pseudonym.kinds import Kind
+from pseudonym.language import Found, Language, Profile
 
 WORD = re.compile(r"[^\W\d_]+(?:[-'’][^\W\d_]+)*")
 Languages = Iterable[str | Language] | None

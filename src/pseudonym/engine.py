@@ -23,11 +23,11 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from itertools import chain
 
-from pseudonym_nl import names
-from pseudonym_nl.kinds import KINDS, REDACTED, Kind
-from pseudonym_nl.known import KnownName, Matcher, surname, surname_forms
-from pseudonym_nl.language import Found, Language, Profile
-from pseudonym_nl.redact import redact_secrets
+from pseudonym import names
+from pseudonym.kinds import KINDS, REDACTED, Kind
+from pseudonym.known import KnownName, Matcher, surname, surname_forms
+from pseudonym.language import Found, Language, Profile
+from pseudonym.redact import redact_secrets
 
 LEVELS = ("off", "identifiers", "strict")
 CODE_LENGTH = 6

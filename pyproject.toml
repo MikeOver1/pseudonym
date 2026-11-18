@@ -1,7 +1,7 @@
 [project]
-name = "pseudonym-nl"
+name = "pseudonym"
 version = "0.1.0"
-description = "Reversible pseudonymisation of Dutch text before it goes to a language model"
+description = "Reversible pseudonymisation of text before it goes to a language model, with language packs"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []

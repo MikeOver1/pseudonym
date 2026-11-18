@@ -101,7 +101,7 @@ since names come from the language pack.
 `register()` makes any `Language` available by its code, so a pack can live in your own package:
 
 ```python
-from pseudonym_nl import Language, register
+from pseudonym import Language, register
 
 register(Language(code="x-acme", name="Acme jargon", not_names=frozenset({"Widget", "Sprocket"})))
 ```

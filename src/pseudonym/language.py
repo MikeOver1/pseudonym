@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
 
-from pseudonym_nl.kinds import LABELS
+from pseudonym.kinds import LABELS
 
 
 @dataclass(frozen=True)
@@ -167,7 +167,7 @@ INITIALS = r"(?:[A-Z]\.[^\S\n]*){1,4}"
 
 @cache
 def _compiled(languages: tuple[Language, ...]) -> Profile:
-    from pseudonym_nl.core import CORE  # the core module imports this one
+    from pseudonym.core import CORE  # the core module imports this one
 
     every = (CORE, *languages)
     union = lambda attr: frozenset().union(*(getattr(lang, attr) for lang in every))  # noqa: E731
