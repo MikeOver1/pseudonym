@@ -92,3 +92,7 @@ what a provider sees, not a guarantee.
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).

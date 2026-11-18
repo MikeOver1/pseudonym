@@ -3,6 +3,8 @@ name = "pseudonym"
 version = "0.1.0"
 description = "Reversible pseudonymisation of text before it goes to a language model, with language packs"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = []
 
