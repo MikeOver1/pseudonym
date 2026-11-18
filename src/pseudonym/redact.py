@@ -1,6 +1,7 @@
 """Secrets are not replaced by a placeholder but removed, and never put back: tokens with a recognisable
 prefix, private keys, credentials in URLs and configuration, and passwords written out in a login
-instruction. The words that label a password or announce a login come from the languages."""
+instruction. The words that label a password or announce a login come from every registered
+language, whichever languages detection uses."""
 
 from __future__ import annotations
 
@@ -33,9 +34,9 @@ PASSWORD_LINE = re.compile(r"(?m)^([ \t]*)(?=\S*[a-z])(?=\S*[A-Z])(?=\S*\d)(?=\S
 LOGIN_REACH = 300
 
 
-def redact_secrets(text: str, profile: Profile | None = None) -> tuple[str, int]:
+def redact_secrets(text: str) -> tuple[str, int]:
     """The text with every secret removed, and how many were."""
-    profile = profile or Profile.of()
+    profile = Profile.of()
     count = 0
 
     def gone(_m: re.Match[str]) -> str:

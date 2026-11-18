@@ -35,7 +35,7 @@ explains how to add another.
 ```python
 from pseudonym import Matcher, Pseudonymiser, StreamRestorer, organisations, people
 
-languages = ["en"]  # or ["nl"], ["en", "nl"]; leave out for every registered language
+languages = ["en"]  # or ["nl"], ["en", "nl"]; `available()` lists them
 known = Matcher.build(people(["Sarah Thompson", "David Okonkwo"], languages) + organisations(["Northwind Traders Ltd"], languages=languages))
 pz = Pseudonymiser(
     key=b"a secret only the server holds",
@@ -68,9 +68,11 @@ To continue a conversation later, create a `Pseudonymiser` with the same key and
 languages are active: placeholder kinds (`PERSON`, `NATIONAL_ID`, `POSTCODE`, …) are the same in
 every language.
 
-**Languages:** name the ones your text is written in. Each adds its first names, words and rules, so
-every language you add finds more and also mistakes a little more for a name: English capitalises
-words that are Dutch first names and the other way round.
+**Languages** are required: name the ones your text is written in. Each adds its first names, words
+and rules, so every language you add finds more and also mistakes a little more for a name. A
+language's ordinary words also stop the same-spelled first names of another from opening a name by
+shape: with English active, "Frank Bakker" and "Mark de Jong" are no longer found that way, with
+Dutch alone they are. Secrets are removed in every registered language whichever you name.
 
 **Levels:** `identifiers` replaces everything above. `strict` also takes every run of capitalised
 words: a person when it opens with a known first name, an organisation otherwise. That catches more,

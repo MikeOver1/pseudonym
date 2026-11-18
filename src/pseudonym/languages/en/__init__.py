@@ -47,11 +47,10 @@ EN = register(
             Rule(Kind.VAT_ID, re.compile(r"\bGB ?\d{3} ?\d{4} ?\d{2}(?: ?\d{3})?\b"), context=VAT_CONTEXT),
             Rule(Kind.BIRTHDATE, DATE, context=re.compile(r"(?i)\b(?:born|date of birth|birth ?date|birthday|dob|d\.o\.b)")),
             Rule(Kind.POSTCODE, re.compile(r"\b[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}\b")),  # UK
-            Rule(Kind.POSTCODE, re.compile(rf"\b(?:{US_STATES}) \d{{5}}(?:-\d{{4}})?\b")),  # US: a ZIP code counts after its state
+            Rule(Kind.POSTCODE, re.compile(rf"(?<=, )(?:{US_STATES}) \d{{5}}(?:-\d{{4}})?\b")),  # US: a ZIP code counts after ", " and its state
             Rule(Kind.ADDRESS, re.compile(rf"\b\d{{1,5}}[A-Za-z]?\s+(?:[A-Z][a-z]+\s+){{1,3}}(?:{STREET_TYPES})\b\.?")),
         ),
         phone_prefixes=(("44", "0"), ("1", "")),
-        tlds=frozenset({"uk", "us", "ie", "ca", "au", "nz"}),
         public_hosts=frozenset({"gov.uk", "nhs.uk", "police.uk", "gov.ie", "gc.ca", "gov.au", "bbc.co.uk", "google.co.uk"}),
         unknown="[unknown]",
         labels=LABELS,
@@ -94,6 +93,8 @@ EN = register(
             "Thanks, Team",
             "I miss Paris already",
             "Error 404 at line 12",
+            "Ticket ID 48213 is closed",
+            "OK 12345 orders shipped",
             "user.id and request.ip are logged",
         ),
     )

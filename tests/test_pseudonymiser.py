@@ -2,7 +2,7 @@
 
 import pytest
 
-from pseudonym import KINDS, Kind, Matcher, Profile, Pseudonymiser, StreamRestorer, organisations, people, placeholder, redact_secrets
+from pseudonym import KINDS, Kind, Matcher, Profile, Pseudonymiser, StreamRestorer, available, organisations, people, placeholder, redact_secrets
 
 NL = ["nl"]
 
@@ -129,7 +129,7 @@ def test_off_level_changes_nothing():
 def test_mapping_carries_over_to_a_new_pseudonymiser():
     first = pz()
     sent = first.text("Anna de Vries belt")
-    second = Pseudonymiser(key=KEY, mapping=dict(first.mapping), languages=["en"])  # restoring needs no language
+    second = Pseudonymiser(key=KEY, languages=["en"], mapping=dict(first.mapping))  # restoring needs no particular language
     assert second.restore(sent) == "Anna de Vries belt"
 
 
@@ -213,7 +213,7 @@ def test_labels_come_from_the_first_language():
 
 def test_an_unknown_level_is_refused():
     with pytest.raises(ValueError):
-        Pseudonymiser(key=KEY, level="max")
+        Pseudonymiser(key=KEY, languages=NL, level="max")
 
 
 ENGLISH_MAIL = """Hi Rachel,
@@ -238,8 +238,22 @@ Head of Operations, Northwind Traders
 def test_english_prose_loses_its_people_and_nothing_else(languages):
     """Sentence capitals, title-case headings and names that are also words (Will, May, Grace, Mark,
     Max) are where shape-based detection goes wrong in English."""
-    p = Pseudonymiser(key=KEY, languages=languages)
+    p = Pseudonymiser(key=KEY, languages=languages or available())
     sent = p.text(ENGLISH_MAIL)
     assert sorted(v for _, v in p.mapping.values()) == ["David Okonkwo", "Laura Bennett", "Northwind Traders Ltd", "Rachel", "Tom Hughes"]
     assert "Northwind" not in sent and "Head of Operations" in sent
     assert p.restore(sent) == ENGLISH_MAIL.replace("Operations, Northwind Traders", "Operations, Northwind Traders Ltd")
+
+
+def test_secrets_are_removed_in_every_language_whichever_are_active():
+    p = Pseudonymiser(key=KEY, languages=["en"])
+    assert "geheim123" not in p.text("Wachtwoord: geheim123")
+
+
+def test_a_language_s_ordinary_words_only_block_first_names_when_it_is_active():
+    assert "Frank" not in pz().text("Frank Bakker belt morgen")
+    assert Pseudonymiser(key=KEY, languages=["en", "nl"]).text("Frank Bakker belt morgen") == "Frank Bakker belt morgen"
+
+
+def test_hosts_in_common_country_domains_are_found_in_any_language():
+    assert "firma" not in Pseudonymiser(key=KEY, languages=["en"]).text("See intranet.firma.de")

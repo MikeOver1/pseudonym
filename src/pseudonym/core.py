@@ -83,9 +83,13 @@ CORE = Language(
         Rule(Kind.VAT_ID, EU_VAT, context=VAT_CONTEXT),
         Rule(Kind.IP, re.compile(r"(?<![\d.])(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?![\d.])"), check=not_local_ip),
     ),
-    # generic top-level domains; a country's own come with its language, which keeps "user.id" and
-    # "setup.py" from being taken for hosts until someone writes for Indonesia or Paraguay
-    tlds=frozenset("com org net edu gov eu int io ai co me tv dev app cloud info biz online shop site store tech xyz".split()),
+    # generic top-level domains and the common European and English-speaking countries' own; a language
+    # adds the rest of its region's. Country codes that are also file extensions or code (Indonesia's
+    # "id", Paraguay's "py", India's "in") stay out until a language needs them.
+    tlds=frozenset(
+        """com org net edu gov eu int io ai co me tv dev app cloud info biz online shop site store tech xyz
+        nl be de fr es it at ch lu dk se no fi ie uk us ca au nz""".split()
+    ),
     # hosts that identify no one: public infrastructure, documentation and the tools everyone uses
     public_hosts=frozenset(
         """amazonaws.com anthropic.com claude.ai apple.com atlassian.com cloudflare.com docker.com example.com example.org

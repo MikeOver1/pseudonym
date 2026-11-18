@@ -10,7 +10,7 @@ from pseudonym import Pseudonymiser, available, get
 from pseudonym.core import CORE
 
 PACKS = [CORE, *(get(code) for code in available())]
-ALL = None  # every registered language
+ALL = available()
 CASES = [(lang, text, kind) for lang in PACKS for text, kind in lang.found]
 QUIET = [(lang, text) for lang in PACKS for text in lang.left_alone]
 

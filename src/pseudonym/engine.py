@@ -65,10 +65,11 @@ Finder = Callable[[str], Iterable[Found]]
 @dataclass
 class Pseudonymiser:
     key: bytes
+    # The languages your text is written in, as codes or Language objects; `available()` lists them.
+    # Each adds names and rules, and one language's ordinary words keep another's same-spelled first
+    # names ("Mark", "Frank") from opening a name, so name only the languages you need.
+    languages: Iterable[str | Language]
     level: str = "identifiers"
-    # Language codes or Language objects; None is every registered language. Each one adds names and
-    # rules, so naming only the languages your text is in keeps false positives down.
-    languages: Iterable[str | Language] | None = None
     matcher: Matcher | None = None
     own_hosts: frozenset[str] = frozenset()
     # Names that are never replaced, however they are found: your own company, the assistant.
@@ -82,7 +83,7 @@ class Pseudonymiser:
     def __post_init__(self) -> None:
         if self.level not in LEVELS:
             raise ValueError(f"level must be one of {LEVELS}, not {self.level!r}")
-        self.profile = Profile.of(self.languages)
+        self.profile = Profile.of(tuple(self.languages))
         self.never = frozenset(" ".join(n.split()).casefold() for n in self.never)
 
     def text(self, value: str) -> str:
@@ -90,7 +91,7 @@ class Pseudonymiser:
         if self.level == "off" or not value:
             return value
         p = self.profile
-        result, removed = redact_secrets(value, p)
+        result, removed = redact_secrets(value)  # in every language: a secret is never worth missing
         if removed:
             self.replaced[REDACTED] += removed
         result = self._replace(result, lambda t: names.identifiers(t, p))

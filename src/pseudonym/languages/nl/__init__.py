@@ -55,7 +55,7 @@ NL = register(
             ),
         ),
         phone_prefixes=(("31", "0"),),
-        tlds=frozenset({"nl", "be", "frl", "amsterdam"}),
+        tlds=frozenset({"frl", "amsterdam"}),
         public_hosts=frozenset({"overheid.nl", "rijksoverheid.nl", "government.nl", "belastingdienst.nl", "kvk.nl", "google.nl", "belgium.be"}),
         password_labels=(r"wachtwoord",),
         login_words=(r"inlog\w*", r"ingelogd", r"log (?:je|u) in", r"gebruikersnaam", r"wachtwoord"),
@@ -109,6 +109,7 @@ NL = register(
             "Doel: een offerte van 150 woorden",  # a label, not a speaker
             "Maandag Offerte Bespreken",
             "Draai setup.py en lees README.md",
+            "Klant ID 12345 is gesloten",
         ),
     )
 )
