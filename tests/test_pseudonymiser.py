@@ -205,3 +205,29 @@ def test_a_protected_name_does_not_end_a_person_found_by_shape():
 def test_without_never_the_company_is_just_another_organisation():
     p = Pseudonymiser(key=KEY, level="strict")
     assert "Bakkerij Zoet" not in p.text("De taart komt van Bakkerij Zoet uit Zwolle.")
+
+
+@pytest.mark.parametrize(
+    ("text", "secret"),
+    [
+        ("postgres://app:p@ss@db:5432/x", "ss@db"),  # an "@" in the password does not end it early
+        ('password = "hunter2"', "hunter2"),  # short, quoted
+        ('wachtwoord: "mijn geheime zin"', "geheime"),  # quoted, with spaces
+    ],
+)
+def test_passwords_are_removed_whole(text, secret):
+    redacted, removed = redact_secrets(text)
+    assert removed == 1 and secret not in redacted and "[REDACTED]" in redacted, redacted
+
+
+def test_the_host_after_a_url_password_stays():
+    assert redact_secrets("postgres://app:p@ss@db:5432/x")[0] == "postgres://app:[REDACTED]@db:5432/x"
+
+
+def test_a_long_run_of_capitalised_words_takes_linear_time():
+    import time
+
+    text = " ".join(["Aaaa"] * 20000)
+    start = time.perf_counter()
+    Pseudonymiser(key=KEY, level="strict").text(text)
+    assert time.perf_counter() - start < 2

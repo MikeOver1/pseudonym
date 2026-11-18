@@ -72,7 +72,8 @@ SECRETS = [
     re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
 ]
-URL_PASSWORD = re.compile(r"\b([a-z][a-z0-9+.\-]*://[^\s:/@]+:)([^\s@/]+)(@)")
+# The password runs to the last "@" before the host, so one holding an "@" goes as a whole.
+URL_PASSWORD = re.compile(r"\b([a-z][a-z0-9+.\-]*://[^\s:/@]+:)([^\s/]+)(@)(?=[^\s@/]+(?:[/?#]|\s|$))")
 QUOTED_SECRET = re.compile(
     r"(?i)\b(password|passwd|pwd|wachtwoord|secret|api[_-]?key|access[_-]?key|token|client[_-]?secret)\b"
     r"(\s*[:=]\s*)(['\"])([^'\"\s]{8,})\3"
@@ -81,6 +82,8 @@ ENV_SECRET = re.compile(r"(?m)^(\s*(?:export\s+)?[A-Z0-9_]*(?:PASSWORD|SECRET|TO
 # Credentials written out for colleagues in a work instruction: a labelled password, or a line that
 # is nothing but a password-shaped word (lower and upper case, digit and symbol) just after a login.
 LABELLED_PASSWORD = re.compile(r"(?i)\b(wachtwoord|password|passwd|pwd)(\s*[:=]\s*)(?!\[REDACTED\])([^\s'\"]{6,})")
+# A quoted one, however short and with spaces: the quotes say where it ends.
+QUOTED_PASSWORD = re.compile(r"(?i)\b(wachtwoord|password|passwd|pwd)(\s*[:=]\s*)(['\"])(?!\[REDACTED\])([^'\"\n]+)\3")
 PASSWORD_LINE = re.compile(r"(?m)^([ \t]*)(?=\S*[a-z])(?=\S*[A-Z])(?=\S*\d)(?=\S*[^\w\s])(?!\S*(?:://|@))(\S{8,64})[ \t]*$")
 LOGIN_CONTEXT = re.compile(r"(?i)\b(?:inlog\w*|ingelogd|log (?:je|u) in|login|gebruikersnaam|username|wachtwoord|password)\b")
 LOGIN_REACH = 300
@@ -125,6 +128,7 @@ def redact_secrets(text: str) -> tuple[str, int]:
         count += 1
         return f"{match.group(1)}{match.group(2)}{REDACTED}"
 
+    text = QUOTED_PASSWORD.sub(quoted, text)
     text = LABELLED_PASSWORD.sub(labelled, text)
 
     def after_login(match: re.Match[str]) -> str:
@@ -154,7 +158,7 @@ BIRTHDATE = re.compile(r"\b(?:[0-3]?\d[-/.][01]?\d[-/.](?:19|20)\d{2}|[0-3]?\d \
 BIRTHDATE_CONTEXT = re.compile(r"(?i)\b(geboren|geboortedatum|geb\.|date of birth|dob)\b")
 POSTCODE = re.compile(r"\b[1-9]\d{3}[ ]?(?!SA|SD|SS)[A-Z]{2}\b")
 STREET = re.compile(
-    r"\b[A-Z][a-zà-ÿ]+(?:[- ][A-Za-zà-ÿ]+)*"
+    r"\b[A-Z][a-zà-ÿ]+(?:[- ][A-Za-zà-ÿ]+){0,4}"  # at most five words: keeps long capitalised runs linear
     r"(?:straat|laan|weg|plein|singel|gracht|kade|dijk|dreef|hof|pad|park|steeg|baan|markt|erf)"
     r"\s\d{1,4}(?:[ -]?[a-zA-Z]\b|-\d{1,3})?"
 )
@@ -207,12 +211,13 @@ PUBLIC_HOSTS = frozenset(
         "nvwa.nl",
     }
 )
-# A company name with its legal form: "Jansen Catering B.V.", "Stichting Het Park".
+# A company name with its legal form: "Jansen Catering B.V.", "Stichting Het Park". At most eight
+# words, which also keeps a long run of capitalised words from taking quadratic time.
 ORG_SUFFIX = re.compile(
-    r"\b(?:[A-Z][\w&'’.-]*(?:\s+(?:[A-Z][\w&'’.-]*|&|en|van|de|der|den|het|voor|'t))*)"
+    r"\b(?:[A-Z][\w&'’.-]*(?:\s+(?:[A-Z][\w&'’.-]*|&|en|van|de|der|den|het|voor|'t)){0,7})"
     r"\s+(?:B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|C\.?V\.?|Holding|Groep|Group|GmbH|Ltd\.?|Inc\.?)(?![\w.])"
 )
-ORG_PREFIX = re.compile(r"\b(?:Stichting|Gemeente|Vereniging|Hotel|Restaurant|Brasserie|Landgoed|Kasteel)\s+(?:[A-Z][\w'’-]*(?:\s+(?:[A-Z][\w'’-]*|van|de|der|den|het|'t))*)")
+ORG_PREFIX = re.compile(r"\b(?:Stichting|Gemeente|Vereniging|Hotel|Restaurant|Brasserie|Landgoed|Kasteel)\s+(?:[A-Z][\w'’-]*(?:\s+(?:[A-Z][\w'’-]*|van|de|der|den|het|'t)){0,7})")
 
 
 def identifiers(text: str) -> Iterator[Found]:
