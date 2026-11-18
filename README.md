@@ -5,7 +5,7 @@ placeholders such as `[PERSON_K3J9QX]`, never the names, contact details and num
 the model's answer reads back with the real values.
 
 Detection is split into a language-neutral core and language packs. **English** (with UK and US
-identifiers) and **Dutch** (with Dutch identifiers) ship with it; [CONTRIBUTING.md](CONTRIBUTING.md)
+identifiers) and **Dutch** (with Dutch identifiers) ship with it; [CONTRIBUTING.md](https://github.com/MikeOver1/pseudonym/blob/main/CONTRIBUTING.md)
 explains how to add another.
 
 - **In every language:** e-mail addresses, IBANs (mod-97), payment cards (Luhn), phone numbers
@@ -95,4 +95,4 @@ uv run ruff check . && uv run ruff format --check .
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/MikeOver1/pseudonym/blob/main/LICENSE).

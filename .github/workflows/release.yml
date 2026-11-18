@@ -1,0 +1,27 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish that version to PyPI. Publishing uses PyPI's trusted publishing:
+# no token, the pypi environment of this repository is registered as the publisher on pypi.org.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/pseudonym/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run pytest
+      - name: Check the tag matches the version
+        run: test "v$(uv version --short)" = "${GITHUB_REF_NAME}"
+      - run: uv build
+      - run: uv publish --trusted-publishing always

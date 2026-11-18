@@ -5,8 +5,30 @@ description = "Reversible pseudonymisation of text before it goes to a language 
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [{ name = "Mike Overkamp" }]
+keywords = ["pseudonymisation", "pseudonymization", "anonymisation", "pii", "privacy", "gdpr", "redaction", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Dutch",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Text Processing",
+    "Typing :: Typed",
+]
 requires-python = ">=3.11"
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/MikeOver1/pseudonym"
+Issues = "https://github.com/MikeOver1/pseudonym/issues"
+Contributing = "https://github.com/MikeOver1/pseudonym/blob/main/CONTRIBUTING.md"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]

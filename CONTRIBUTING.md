@@ -114,3 +114,9 @@ The placeholder kinds are a closed set, so restoring recognises a placeholder wh
 active and so that ordinary words are not taken for one. If no kind fits your identifier, propose a
 new one in `kinds.py` in its own pull request; most national numbers fit `NATIONAL_ID`,
 `COMPANY_ID` or `VAT_ID`.
+
+## Releasing
+
+Set the version with `uv version <x.y.z>`, commit, then tag and push: `git tag v<x.y.z> && git push
+origin v<x.y.z>`. The release workflow runs the tests, checks the tag matches the version, builds and
+publishes to PyPI through trusted publishing.
