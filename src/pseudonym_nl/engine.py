@@ -1,15 +1,15 @@
 """Replacing identifiers with placeholders, and putting them back.
 
-A placeholder looks like `[PERSON_K3J9QX]`. It is derived from the value with a key only the server
-holds, so the same value is the same placeholder in every message of every conversation, and nothing
-about order or count shows. A conversation remembers what each placeholder it gave out stands for,
-which is all restoring needs: a model can only repeat a placeholder it was given. One it invents or
-mangles beyond recognition is shown as unknown rather than guessed.
+A placeholder looks like `[PERSON_K3J9QX]`. It is derived from the value with a key only you hold, so
+the same value is the same placeholder in every message of every conversation, and nothing about
+order or count shows. A conversation remembers what each placeholder it gave out stands for, which is
+all restoring needs: a model can only repeat a placeholder it was given. One it invents or mangles
+beyond recognition is shown as unknown rather than guessed.
 
 The steps run in a fixed order on the text outside placeholders already made: secrets are removed,
-then contact details and numbers are replaced, then host names, then names the app knows (customers,
-staff, suppliers), then organisations by their legal form, then people found by the shape of the
-text, and at the strict level every run of capitalised words.
+then contact details and numbers are replaced, then host names, then names you know, organisations by
+their legal form and people found by the shape of the text, and at the strict level every run of
+capitalised words.
 """
 
 from __future__ import annotations
@@ -23,29 +23,39 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from itertools import chain
 
-from pseudonym_nl import names, patterns
+from pseudonym_nl import names
+from pseudonym_nl.kinds import KINDS, REDACTED, Kind
 from pseudonym_nl.known import KnownName, Matcher, surname, surname_forms
-from pseudonym_nl.patterns import Found, Kind
+from pseudonym_nl.language import Found, Language, Profile
+from pseudonym_nl.redact import redact_secrets
 
 LEVELS = ("off", "identifiers", "strict")
-KINDS = "|".join(Kind.ALL)
 CODE_LENGTH = 6
-PLACEHOLDER = re.compile(rf"\[(?:{KINDS})_[A-Z2-7]{{{CODE_LENGTH}}}\]|\[REDACTED\]")
-WRITTEN_BACK = re.compile(rf"\[?\b(?P<kind>{KINDS})[_ ](?P<code>[A-Z2-7]{{{CODE_LENGTH}}})\b\]?", re.IGNORECASE)
-UNKNOWN = "[onbekend]"
+CODE = "[A-Z2-7]"
+_KINDS = "|".join(sorted(KINDS, key=len, reverse=True))
+# as the model may write a kind back: any case, a space for an underscore
+_KINDS_WRITTEN = "|".join(k.replace("_", "[_ ]") for k in sorted(KINDS, key=len, reverse=True))
+PLACEHOLDER = re.compile(rf"\[(?:{_KINDS})_{CODE}{{{CODE_LENGTH}}}\]|\[{REDACTED}\]")
+WRITTEN_BACK = re.compile(rf"\[?\b(?P<kind>{_KINDS_WRITTEN})[_ ](?P<code>{CODE}{{{CODE_LENGTH}}})\b\]?", re.IGNORECASE)
+SEPARATED = (Kind.PHONE, Kind.IBAN, Kind.CARD, Kind.NATIONAL_ID, Kind.COMPANY_ID, Kind.VAT_ID, Kind.POSTCODE)
 
 
-def normalise(kind: str, value: str) -> str:
+def normalise(kind: str, value: str, profile: Profile | None = None) -> str:
+    """The value as compared: "+31 6-1234 5678" and "0612345678" are the same number."""
     v = " ".join(value.split()).casefold()
-    if kind in (Kind.PHONE, Kind.IBAN, Kind.BSN, Kind.KVK, Kind.BTW, Kind.POSTCODE):
-        v = re.sub(r"[\s\-.()]", "", v)
-        if kind == Kind.PHONE:
-            v = re.sub(r"^(?:\+|00)31", "0", v)
+    if kind in SEPARATED:
+        v = re.sub(r"[\s\-.()/]", "", v)
+    if kind == Kind.PHONE:
+        for code, trunk in (profile or Profile.of()).phone_prefixes:
+            for intl in (f"+{code}", f"00{code}"):
+                if v.startswith(intl):
+                    rest = v[len(intl) :]
+                    return trunk + (rest[len(trunk) :] if trunk and rest.startswith(trunk) else rest)
     return v
 
 
-def placeholder(key: bytes, kind: str, value: str) -> str:
-    digest = hmac.new(key, f"{kind}|{normalise(kind, value)}".encode(), hashlib.sha256).digest()
+def placeholder(key: bytes, kind: str, value: str, profile: Profile | None = None) -> str:
+    digest = hmac.new(key, f"{kind}|{normalise(kind, value, profile)}".encode(), hashlib.sha256).digest()
     return f"[{kind}_{base64.b32encode(digest).decode()[:CODE_LENGTH]}]"
 
 
@@ -56,6 +66,9 @@ Finder = Callable[[str], Iterable[Found]]
 class Pseudonymiser:
     key: bytes
     level: str = "identifiers"
+    # Language codes or Language objects; None is every registered language. Each one adds names and
+    # rules, so naming only the languages your text is in keeps false positives down.
+    languages: Iterable[str | Language] | None = None
     matcher: Matcher | None = None
     own_hosts: frozenset[str] = frozenset()
     # Names that are never replaced, however they are found: your own company, the assistant.
@@ -63,24 +76,33 @@ class Pseudonymiser:
     # What each placeholder stands for: placeholder -> [kind, value]. Kept per conversation.
     mapping: dict[str, list[str]] = field(default_factory=dict)
     replaced: Counter[str] = field(default_factory=Counter)
+    profile: Profile = field(init=False, repr=False)
     _recognised: dict[str, KnownName] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
+        if self.level not in LEVELS:
+            raise ValueError(f"level must be one of {LEVELS}, not {self.level!r}")
+        self.profile = Profile.of(self.languages)
         self.never = frozenset(" ".join(n.split()).casefold() for n in self.never)
 
     def text(self, value: str) -> str:
         """The text as the provider may see it."""
         if self.level == "off" or not value:
             return value
-        result, removed = patterns.redact_secrets(value)
+        p = self.profile
+        result, removed = redact_secrets(value, p)
         if removed:
-            self.replaced["REDACTED"] += removed
-        result = self._replace(result, patterns.identifiers)
-        result = self._replace(result, lambda t: patterns.hosts(t, self.own_hosts))
+            self.replaced[REDACTED] += removed
+        result = self._replace(result, lambda t: names.identifiers(t, p))
+        result = self._replace(result, lambda t: names.hosts(t, p, self.own_hosts))
         # known names, organisations by legal form and people by shape in one pass, so at one spot the
         # longest match wins: "Karin van Dijk" as one unknown person, not a known Karin plus a known van Dijk
         strict = self.level == "strict"
-        result = self._replace(result, lambda t: chain(self.matcher.find(t) if self.matcher else (), patterns.organisations(t), names.people(t, strict=strict, never=self.never)), remember=True)
+        result = self._replace(
+            result,
+            lambda t: chain(self.matcher.find(t) if self.matcher else (), names.organisations(t, p), names.people(t, p, strict=strict, never=self.never)),
+            remember=True,
+        )
         if self._recognised:
             # the same names again, where the shape did not give them away (a surname alone, lower case)
             seen = Matcher.build(self._recognised.values())
@@ -96,13 +118,14 @@ class Pseudonymiser:
             return value
 
         def back(m: re.Match[str]) -> str:
-            ph = f"[{m.group('kind').upper()}_{m.group('code').upper()}]"
-            entry = self.mapping.get(ph)
-            return entry[1] if entry else UNKNOWN
+            kind = m.group("kind").upper().replace(" ", "_")
+            entry = self.mapping.get(f"[{kind}_{m.group('code').upper()}]")
+            return entry[1] if entry else self.profile.unknown
 
         return WRITTEN_BACK.sub(back, value)
 
     def summary(self) -> dict[str, int]:
+        """How many of each kind were replaced. `profile.labels` names them for people."""
         return {k: v for k, v in sorted(self.replaced.items()) if v}
 
     # ------------------------------------------------------------------ internals
@@ -130,7 +153,7 @@ class Pseudonymiser:
         for f in found:
             if f.start < pos or " ".join(f.value.split()).casefold() in self.never:
                 continue
-            ph = placeholder(self.key, f.kind, f.value)
+            ph = placeholder(self.key, f.kind, f.value, self.profile)
             self.mapping.setdefault(ph, [f.kind, f.value])
             self.replaced[f.kind] += 1
             if remember:
@@ -147,13 +170,17 @@ class Pseudonymiser:
         if key in self._recognised:
             return
         self._recognised[key] = KnownName(f.value, f.kind, f.value, any_case=True)
+        if f.kind == Kind.ORG and self.profile.legal_suffix is not None:
+            short = self.profile.legal_suffix.sub("", f.value).strip(" ,")
+            if short != f.value and len(short) >= 4:
+                self._recognised.setdefault(short.casefold(), KnownName(short, Kind.ORG, f.value, any_case=True))
         if f.kind == Kind.PERSON:
-            words = re.findall(r"[^\W\d_]+", f.value)
-            last = surname(words[1:]) if len(words) > 1 else None
+            words = names.WORDS.findall(f.value)
+            last = surname(words[1:], self.profile) if len(words) > 1 else None
             if last:
                 for form in surname_forms(last, f.value):
                     self._recognised.setdefault(form.text + "|s", form)
-            if len(words) > 1 and words[0] in names.first_names():
+            if len(words) > 1 and words[0] in self.profile.first_names:
                 self._recognised.setdefault(words[0] + "|s", KnownName(words[0], Kind.PERSON, f.value, any_case=False))
 
 
@@ -161,7 +188,7 @@ class StreamRestorer:
     """Restores placeholders in a stream of text chunks. A placeholder may arrive split over chunks, so
     the tail that could still be the start of one is held back until the next chunk decides."""
 
-    KIND_PREFIX = re.compile(r"\[?(?P<word>[A-Za-z]+)(?:[_ ](?P<code>[A-Za-z2-7]{0,6}))?$")
+    REACH = max(map(len, KINDS)) + CODE_LENGTH + 3  # "[", "_", "]"
 
     def __init__(self, pz: Pseudonymiser) -> None:
         self._pz = pz
@@ -179,21 +206,22 @@ class StreamRestorer:
 
     @classmethod
     def _safe_cut(cls, buf: str) -> int:
-        cut = len(buf)
-        bracket = buf.rfind("[")
-        if bracket != -1 and "]" not in buf[bracket:] and len(buf) - bracket <= 2 * CODE_LENGTH + 12:
-            cut = bracket
-        head = buf[:cut]
-        m = cls.KIND_PREFIX.search(head)
-        while m:  # the trailing token, and the shorter tails inside it ("en p": "p" opens PERSON)
-            if (m.start() == 0 or not head[m.start() - 1].isalnum()) and cls._may_be_placeholder(m.group("word"), m.group("code")):
-                return m.start()
-            m = cls.KIND_PREFIX.search(head, m.start() + 1)
-        return cut
+        """Where the held-back tail starts: the earliest spot near the end that may open a placeholder."""
+        for i in range(max(0, len(buf) - cls.REACH), len(buf)):
+            if (buf[i] == "[" or (buf[i].isalpha() and (i == 0 or not buf[i - 1].isalnum()))) and cls._may_open(buf[i:]):
+                return i
+        return len(buf)
 
     @staticmethod
-    def _may_be_placeholder(word: str, code: str | None) -> bool:
-        word = word.upper()
-        if code is None:
-            return any(k.startswith(word) for k in Kind.ALL)
-        return word in Kind.ALL
+    def _may_open(tail: str) -> bool:
+        s = tail.removeprefix("[").upper().replace(" ", "_")
+        if not s:
+            return True
+        for kind in KINDS:
+            if kind.startswith(s):
+                return True
+            if s.startswith(kind + "_"):
+                code = s[len(kind) + 1 :]
+                if len(code) <= CODE_LENGTH and re.fullmatch(f"{CODE}*", code):
+                    return True
+        return False

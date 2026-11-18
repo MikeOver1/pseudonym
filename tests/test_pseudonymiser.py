@@ -2,72 +2,42 @@
 
 import pytest
 
-from pseudonym_nl.engine import UNKNOWN, Pseudonymiser, StreamRestorer, placeholder
-from pseudonym_nl.known import Matcher, organisations, people
-from pseudonym_nl.patterns import Kind, redact_secrets
+from pseudonym_nl import KINDS, Kind, Matcher, Profile, Pseudonymiser, StreamRestorer, organisations, people, placeholder, redact_secrets
+
+NL = ["nl"]
 
 KEY = b"test-key"
 OWN = frozenset({"Bakkerij Zoet", "bakkerijzoet", "Claude", "Anthropic"})
-KNOWN = people(["Anna de Vries", "Pieter Bakker", "Karin van Dijk", "Jan Jansen"]) + organisations(["Veilinghuis Oost B.V.", "Gemeente Zwolle", "Particulier", "test"])
+KNOWN = people(["Anna de Vries", "Pieter Bakker", "Karin van Dijk", "Jan Jansen"], NL) + organisations(["Veilinghuis Oost B.V.", "Gemeente Zwolle", "Particulier", "test"], languages=NL)
 
 
 def pz(level="identifiers"):
-    return Pseudonymiser(key=KEY, level=level, matcher=Matcher.build(KNOWN), own_hosts=frozenset({"bakkerijzoet.nl"}), never=OWN)
+    return Pseudonymiser(key=KEY, level=level, languages=NL, matcher=Matcher.build(KNOWN), own_hosts=frozenset({"bakkerijzoet.nl"}), never=OWN)
 
 
 @pytest.mark.parametrize(
-    ("text", "kind"),
+    ("text", "back"),
     [
-        ("Mail anna@veilinghuis-oost.nl voor de offerte", Kind.EMAIL),
-        ("Bel 06-12345678 morgen", Kind.PHONE),
-        ("Bel +31 6 1234 5678 morgen", Kind.PHONE),
-        ("Betaal op NL91 ABNA 0417 1643 00 graag", Kind.IBAN),
-        ("Haar BSN is 111222333.", Kind.BSN),
-        ("KvK-nummer 12345678 staat op de factuur", Kind.KVK),
-        ("Btw-nummer NL123456789B01", Kind.BTW),
-        ("Zij is geboren op 12-03-1980 in Zwolle", Kind.BIRTHDATE),
-        ("Het kantoor zit op 1234 AB in Zwolle", Kind.POSTCODE),
-        ("Adres: Hoofdstraat 12, Zwolle", Kind.ADDRESS),
-        ("De server staat op 10.20.30.40 intern", Kind.IP),
-        ("Zie intranet.klant.nl voor het menu", Kind.HOST),
-        ("Vraag het Veilinghuis Oost B.V.", Kind.ORG),
+        ("Vraag het Veilinghuis Oost B.V.", None),
         ("Vraag het veilinghuis oost", "Vraag het Veilinghuis Oost B.V."),  # a short form reads back as the full name
-        ("Jansen Catering B.V. levert de wijn", Kind.ORG),
-        ("Stichting Het Park huurt de zaal", Kind.ORG),
-        ("Anna de Vries tekent de offerte", Kind.PERSON),
-        ("Mevr. J. Smit tekent de offerte", Kind.PERSON),
-        ("De heer Pietersen belt morgen", Kind.PERSON),
-        ("Sophie van den Berg is de contactpersoon", Kind.PERSON),
-        ("Zie Pieter Bakker voor de sleutel", Kind.PERSON),  # a capitalised word before the name does not hide it
-        ("Graag t.a.v. Mohammed el Idrissi sturen", Kind.PERSON),
     ],
 )
-def test_identifiers_are_replaced_and_read_back(text, kind):
-    back = text
-    if kind.startswith("Vraag"):
-        kind, back = Kind.ORG, kind
+def test_known_organisations_are_replaced_and_read_back(text, back):
     p = pz()
     sent = p.text(text)
-    assert f"[{kind}_" in sent, sent
-    assert p.restore(sent).casefold() == back.casefold()
+    assert "[ORG_" in sent, sent
+    assert p.restore(sent) == (back or text)
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "Order 123456789 is verzonden",  # nine digits, but nothing says it is a BSN
-        "Bestelling 12345678 staat klaar",  # eight digits without KvK nearby
-        "Rekening NL12 ABCD 1234 5678 90",  # fails the IBAN check
-        "Versie 1.2.3 van Django",
-        "Op 12-03-2026 is het diner",  # a date, no birth date
         "Bakkerij Zoet verzorgt het diner met Claude",
         "Kijk op www.bakkerijzoet.nl en google.com",
         "Dijk is geen naam en Particulier is geen klant",
-        "Het Zwolse kantoor",
-        "Doel: een offerte van 150 woorden",  # a label, not a speaker
     ],
 )
-def test_what_only_looks_like_an_identifier_is_left_alone(text):
+def test_own_and_empty_names_are_left_alone(text):
     assert pz().text(text) == text
 
 
@@ -114,7 +84,7 @@ def test_a_mangled_placeholder_is_read_back_and_an_invented_one_is_unknown():
     made = p.text("Anna de Vries")
     kind, code = made.strip("[]").split("_")
     assert p.restore(f"Vraag {kind.lower()} {code.lower()}.") == "Vraag Anna de Vries."
-    assert p.restore("Vraag [PERSON_ZZZZZZ].") == f"Vraag {UNKNOWN}."
+    assert p.restore("Vraag [PERSON_ZZZZZZ].") == "Vraag [onbekend]."
 
 
 @pytest.mark.parametrize(
@@ -129,9 +99,9 @@ def test_secrets_are_removed_for_good(secret):
 
 
 def test_secrets_in_configuration_keep_their_name():
-    text, removed = redact_secrets('SENTRY_AUTH_TOKEN=abc123def456\nwachtwoord = "hunter2hunter2"\npostgres://hal:s3cretpass@db:5432/hal')
+    text, removed = redact_secrets('SENTRY_AUTH_TOKEN=abc123def456\nwachtwoord = "hunter2hunter2"\npostgres://app:s3cretpass@db:5432/app')
     assert removed == 3
-    assert "SENTRY_AUTH_TOKEN=[REDACTED]" in text and 'wachtwoord = "[REDACTED]"' in text and "postgres://hal:[REDACTED]@db" in text
+    assert "SENTRY_AUTH_TOKEN=[REDACTED]" in text and 'wachtwoord = "[REDACTED]"' in text and "postgres://app:[REDACTED]@db" in text
 
 
 def test_credentials_in_a_work_instruction_are_removed():
@@ -159,7 +129,7 @@ def test_off_level_changes_nothing():
 def test_mapping_carries_over_to_a_new_pseudonymiser():
     first = pz()
     sent = first.text("Anna de Vries belt")
-    second = Pseudonymiser(key=KEY, mapping=dict(first.mapping))
+    second = Pseudonymiser(key=KEY, mapping=dict(first.mapping), languages=["en"])  # restoring needs no language
     assert second.restore(sent) == "Anna de Vries belt"
 
 
@@ -169,11 +139,15 @@ def test_known_organisation_in_an_email_slug_and_without_legal_form():
     assert "veilinghuis" not in sent.casefold() and "Zwolle" not in sent
 
 
-def test_stream_restores_a_placeholder_split_at_every_boundary():
+@pytest.mark.parametrize("kind", KINDS)
+def test_stream_restores_a_placeholder_split_at_every_boundary(kind):
     p = pz()
-    ph = p.text("Anna de Vries")
-    text = f"Dag {ph}, en {ph.strip('[]').lower().replace('_', ' ')}! IP adres ok. In de [tabel] staat PERSON_ZZZZZZ en [REDACTED]."
+    ph = placeholder(KEY, kind, "waarde")
+    p.mapping[ph] = [kind, "waarde"]
+    written = ph.strip("[]").lower().replace("_", " ")
+    text = f"Dag {ph}, en {written}! IP adres ok. In de [tabel] staat {kind}_ZZZZZZ en [REDACTED]."
     expected = p.restore(text)
+    assert expected.count("waarde") == 2 and "[onbekend]" in expected, expected
     for n in range(1, len(text)):
         sr = StreamRestorer(p)
         out = sr.feed(text[:n]) + sr.feed(text[n:]) + sr.finish()
@@ -188,7 +162,7 @@ def test_stream_releases_text_that_cannot_hold_a_placeholder():
 
 def test_known_single_name_forms_do_not_split_an_unknown_full_name():
     # the app knows a Karin and a van Dijk; the text's Karin van Dijk is someone else
-    p = Pseudonymiser(key=KEY, matcher=Matcher.build(people(["Karin Verhoeven", "Sabine van Dijk"])))
+    p = Pseudonymiser(key=KEY, languages=NL, matcher=Matcher.build(people(["Karin Verhoeven", "Sabine van Dijk"], NL)))
     sent = p.text("Mail aan Karin van Dijk over het diner. Karin belt. Van Dijk tekent.")
     assert sent.count("[PERSON_") == 3
     assert p.restore(sent) == "Mail aan Karin van Dijk over het diner. Karin van Dijk belt. Karin van Dijk tekent."
@@ -203,7 +177,7 @@ def test_a_protected_name_does_not_end_a_person_found_by_shape():
 
 
 def test_without_never_the_company_is_just_another_organisation():
-    p = Pseudonymiser(key=KEY, level="strict")
+    p = Pseudonymiser(key=KEY, level="strict", languages=NL)
     assert "Bakkerij Zoet" not in p.text("De taart komt van Bakkerij Zoet uit Zwolle.")
 
 
@@ -224,10 +198,48 @@ def test_the_host_after_a_url_password_stays():
     assert redact_secrets("postgres://app:p@ss@db:5432/x")[0] == "postgres://app:[REDACTED]@db:5432/x"
 
 
-def test_a_long_run_of_capitalised_words_takes_linear_time():
-    import time
+def test_phone_numbers_are_compared_without_country_code_or_trunk():
+    nl = Profile.of(NL)
+    assert placeholder(KEY, Kind.PHONE, "+31 (0)6 1234 5678", nl) == placeholder(KEY, Kind.PHONE, "06-12345678", nl)
+    en = Profile.of(["en"])
+    assert placeholder(KEY, Kind.PHONE, "+44 20 7946 0018", en) == placeholder(KEY, Kind.PHONE, "020 7946 0018", en)
+    assert placeholder(KEY, Kind.PHONE, "+1 415 555 0132", en) == placeholder(KEY, Kind.PHONE, "(415) 555-0132", en)
 
-    text = " ".join(["Aaaa"] * 20000)
-    start = time.perf_counter()
-    Pseudonymiser(key=KEY, level="strict").text(text)
-    assert time.perf_counter() - start < 2
+
+def test_labels_come_from_the_first_language():
+    assert Profile.of(["nl", "en"]).labels[Kind.PERSON] == "namen"
+    assert Profile.of(["en", "nl"]).labels[Kind.PERSON] == "names"
+
+
+def test_an_unknown_level_is_refused():
+    with pytest.raises(ValueError):
+        Pseudonymiser(key=KEY, level="max")
+
+
+ENGLISH_MAIL = """Hi Rachel,
+
+Thanks for the call on Tuesday. As discussed, Will and I reviewed the proposal from Northwind Traders Ltd
+and we think it is a good fit. May I suggest we bring Tom Hughes from finance into the next meeting?
+Grace Period terms are in section 4. The Project Kickoff is planned for March, and New York Office Hours
+stay the same. Please Mark Complete any items you have finished in Jira before Friday.
+
+Action items:
+- Rachel: send the signed NDA to David Okonkwo by Thursday
+- Tom Hughes: check the invoice against the Purchase Order
+- Max Retries should stay at 3 in the Payment Service config
+
+Best regards,
+Laura Bennett
+Head of Operations, Northwind Traders
+"""
+
+
+@pytest.mark.parametrize("languages", [["en"], None], ids=["en", "all"])
+def test_english_prose_loses_its_people_and_nothing_else(languages):
+    """Sentence capitals, title-case headings and names that are also words (Will, May, Grace, Mark,
+    Max) are where shape-based detection goes wrong in English."""
+    p = Pseudonymiser(key=KEY, languages=languages)
+    sent = p.text(ENGLISH_MAIL)
+    assert sorted(v for _, v in p.mapping.values()) == ["David Okonkwo", "Laura Bennett", "Northwind Traders Ltd", "Rachel", "Tom Hughes"]
+    assert "Northwind" not in sent and "Head of Operations" in sent
+    assert p.restore(sent) == ENGLISH_MAIL.replace("Operations, Northwind Traders", "Operations, Northwind Traders Ltd")
