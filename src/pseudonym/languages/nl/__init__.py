@@ -78,7 +78,7 @@ NL = register(
             "REDACTED": "geheimen",
         },
         found=(
-            ("Mail anna@veilinghuis-oost.nl voor de offerte", Kind.EMAIL),
+            ("Mail anna@bouwbedrijf-oost.nl voor de offerte", Kind.EMAIL),
             ("Bel 06-12345678 morgen", Kind.PHONE),
             ("Bel +31 6 1234 5678 morgen", Kind.PHONE),
             ("Bel 0031 (0)6 1234 5678 morgen", Kind.PHONE),

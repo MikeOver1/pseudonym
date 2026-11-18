@@ -8,7 +8,7 @@ NL = ["nl"]
 
 KEY = b"test-key"
 OWN = frozenset({"Bakkerij Zoet", "bakkerijzoet", "Claude", "Anthropic"})
-KNOWN = people(["Anna de Vries", "Pieter Bakker", "Karin van Dijk", "Jan Jansen"], NL) + organisations(["Veilinghuis Oost B.V.", "Gemeente Zwolle", "Particulier", "test"], languages=NL)
+KNOWN = people(["Anna de Vries", "Pieter Bakker", "Karin van Dijk", "Jan Jansen"], NL) + organisations(["Bouwbedrijf Oost B.V.", "Gemeente Zwolle", "Particulier", "test"], languages=NL)
 
 
 def pz(level="identifiers"):
@@ -18,8 +18,8 @@ def pz(level="identifiers"):
 @pytest.mark.parametrize(
     ("text", "back"),
     [
-        ("Vraag het Veilinghuis Oost B.V.", None),
-        ("Vraag het veilinghuis oost", "Vraag het Veilinghuis Oost B.V."),  # a short form reads back as the full name
+        ("Vraag het Bouwbedrijf Oost B.V.", None),
+        ("Vraag het bouwbedrijf oost", "Vraag het Bouwbedrijf Oost B.V."),  # a short form reads back as the full name
     ],
 )
 def test_known_organisations_are_replaced_and_read_back(text, back):
@@ -135,8 +135,8 @@ def test_mapping_carries_over_to_a_new_pseudonymiser():
 
 def test_known_organisation_in_an_email_slug_and_without_legal_form():
     p = pz()
-    sent = p.text("info@veilinghuisoost.nl, Veilinghuis Oost BV, Gemeente Zwolle")
-    assert "veilinghuis" not in sent.casefold() and "Zwolle" not in sent
+    sent = p.text("info@bouwbedrijfoost.nl, Bouwbedrijf Oost BV, Gemeente Zwolle")
+    assert "bouwbedrijf" not in sent.casefold() and "Zwolle" not in sent
 
 
 @pytest.mark.parametrize("kind", KINDS)
